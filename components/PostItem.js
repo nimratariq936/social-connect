@@ -1,16 +1,33 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, FlatList, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { usePosts } from '../context/PostContext';
 
 export default function PostItem({ post, navigation }) {
-  const { toggleLike, addComment } = usePosts();
+  const { deletePost, editPost, toggleLike, addComment } = usePosts();
   const { user } = useAuth();
   const [commentText, setCommentText] = useState('');
   const [showComments, setShowComments] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState(post.text);
 
+  const isOwner = user?.uid === post.userId;
   const isLiked = post.likes && post.likes.includes(user?.uid);
+
+  const handleDelete = () => {
+    Alert.alert('Delete Post', 'Are you sure you want to delete this post?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deletePost(post.id) }
+    ]);
+  };
+
+  const handleEditSave = () => {
+    if (editedText.trim() !== post.text) {
+      editPost(post.id, editedText.trim());
+    }
+    setIsEditing(false);
+  };
 
   const handleLike = () => {
     toggleLike(post.id);
@@ -32,10 +49,43 @@ export default function PostItem({ post, navigation }) {
           source={{ uri: post.userProfilePic || 'https://via.placeholder.com/50' }} 
           style={styles.profilePic} 
         />
-        <Text style={styles.userName}>{post.userName}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.userName}>{post.userName}</Text>
+          <Text style={styles.timestamp}>{new Date(post.createdAt || Date.now()).toLocaleString()}</Text>
+        </View>
+        
+        {isOwner && (
+          <View style={{ flexDirection: 'row' }}>
+            <TouchableOpacity onPress={() => setIsEditing(!isEditing)} style={{ marginRight: 15 }}>
+              <Ionicons name="pencil-outline" size={20} color="#007AFF" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={20} color="red" />
+            </TouchableOpacity>
+          </View>
+        )}
       </TouchableOpacity>
 
-      <Text style={styles.postText}>{post.text}</Text>
+      {isEditing ? (
+        <View style={{ marginBottom: 10 }}>
+          <TextInput
+            style={styles.editInput}
+            value={editedText}
+            onChangeText={setEditedText}
+            multiline
+          />
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginTop: 5 }}>
+            <TouchableOpacity onPress={() => setIsEditing(false)} style={{ marginRight: 15 }}>
+              <Text style={{ color: '#888' }}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleEditSave}>
+              <Text style={{ color: '#007AFF', fontWeight: 'bold' }}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <Text style={styles.postText}>{post.text}</Text>
+      )}
 
       {post.image && (
         <Image source={{ uri: post.image }} style={styles.postImage} />
@@ -87,8 +137,6 @@ export default function PostItem({ post, navigation }) {
           </View>
         </View>
       )}
-
-      <Text style={styles.timestamp}>{post.timestamp || 'just now'}</Text>
     </View>
   );
 }
@@ -117,5 +165,5 @@ const styles = StyleSheet.create({
   commentInputContainer: { flexDirection: 'row', marginTop: 10 },
   commentInput: { flex: 1, borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 20 },
   sendButton: { color: '#007AFF', fontWeight: 'bold', padding: 10 },
-  timestamp: { fontSize: 12, color: '#888', marginTop: 8 }
+  editInput: { borderWidth: 1, borderColor: '#ddd', padding: 10, borderRadius: 8, fontSize: 16 }
 });
